@@ -1,0 +1,39 @@
+name: Compile MQL5 to EX5
+
+on:
+  push:
+    paths:
+      - 'experts/**.mq5'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Download MetaEditor 5
+        shell: powershell
+        run: |
+          Invoke-WebRequest -Uri "https://download.mql5.com/cdn/web/metaquotes.software.corp/mt5/mt5setup.exe" -OutFile "mt5setup.exe"
+          Start-Process -FilePath ".\mt5setup.exe" -ArgumentList "/auto" -Wait
+
+      - name: Compile MQ5 Files
+        shell: powershell
+        run: |
+          $metaeditor = "C:\Program Files\MetaTrader 5\metaeditor64.exe"
+          if (!(Test-Path $metaeditor)) {
+            $metaeditor = "C:\Program Files (x86)\MetaTrader 5\metaeditor64.exe"
+          }
+          Get-ChildItem -Path "experts" -Filter "*.mq5" | ForEach-Object {
+            Write-Host "Compiling $($_.FullName)..."
+            Start-Process -FilePath $metaeditor -ArgumentList "/compile:`"$($_.FullName)`"" -Wait
+          }
+
+      - name: Upload Compiled EX5 Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: compiled-ex5-files
+          path: experts/*.ex5
